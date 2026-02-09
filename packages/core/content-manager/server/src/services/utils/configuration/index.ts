@@ -7,10 +7,11 @@ async function validateCustomConfig(schema: any) {
   try {
     await createModelConfigurationSchema(schema, {
       allowUndefined: true,
-    }).validate(schema.config);
+    }).parseAsync(schema.config);
   } catch (error: any) {
+    const message = error.message || error.issues?.[0]?.message || 'Unknown validation error';
     throw new Error(
-      `Invalid Model configuration for model ${schema.uid}. Verify your {{ modelName }}.config.js(on) file:\n  - ${error.message}\n`
+      `Invalid Model configuration for model ${schema.uid}. Verify your {{ modelName }}.config.js(on) file:\n  - ${message}\n`
     );
   }
 }

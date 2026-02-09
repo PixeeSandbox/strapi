@@ -1,16 +1,13 @@
 import type { Core } from '@strapi/types';
-import * as yup from 'yup';
+import { z } from 'zod';
 import { errors } from '@strapi/utils';
 import type { GetRecentDocuments, GetCountDocuments } from '../../../../shared/contracts/homepage';
 
 const createHomepageController = () => {
   const homepageService = strapi.plugin('content-manager').service('homepage');
 
-  const recentDocumentParamsSchema = yup.object().shape({
-    action: yup
-      .mixed<GetRecentDocuments.Request['query']['action']>()
-      .oneOf(['update', 'publish'])
-      .required(),
+  const recentDocumentParamsSchema = z.object({
+    action: z.enum(['update', 'publish']),
   });
 
   return {
@@ -18,10 +15,11 @@ const createHomepageController = () => {
       let action;
 
       try {
-        action = (await recentDocumentParamsSchema.validate(ctx.query)).action;
+        const result = recentDocumentParamsSchema.parse(ctx.query);
+        action = result.action;
       } catch (error) {
-        if (error instanceof yup.ValidationError) {
-          throw new errors.ValidationError(error.message);
+        if (error instanceof z.ZodError) {
+          throw new errors.ValidationError(error.issues[0]?.message || 'Validation error');
         }
         throw error;
       }

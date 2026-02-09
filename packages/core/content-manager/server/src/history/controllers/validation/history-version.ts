@@ -1,11 +1,8 @@
-import * as yup from 'yup';
-import { validateYupSchema } from '@strapi/utils';
+import { z } from 'zod';
+import { validateZod } from '@strapi/utils';
 
-const historyRestoreVersionSchema = yup
-  .object()
-  .shape({
-    contentType: yup.string().trim().required(),
-  })
-  .required();
+const historyRestoreVersionSchema = z.object({
+  contentType: z.string().trim().min(1),
+});
 
-export const validateRestoreVersion = validateYupSchema(historyRestoreVersionSchema);
+export const validateRestoreVersion = validateZod(historyRestoreVersionSchema);

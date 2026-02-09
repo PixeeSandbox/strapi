@@ -51,6 +51,11 @@ describe('model-configuration validation', () => {
     },
   };
 
+  // Helper function to validate - uses zod's parseAsync for async refinements
+  const validate = async (schema: any, config: any) => {
+    return schema.parseAsync(config);
+  };
+
   describe('root schema structure', () => {
     it('should validate a complete valid configuration', async () => {
       const validConfig = {
@@ -87,7 +92,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(validConfig)).resolves.toBeDefined();
+      await expect(validate(schema, validConfig)).resolves.toBeDefined();
     });
 
     it('should allow null values for optional root properties', async () => {
@@ -99,7 +104,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(configWithNulls)).resolves.toBeDefined();
+      await expect(validate(schema, configWithNulls)).resolves.toBeDefined();
     });
 
     it('should reject unknown properties', async () => {
@@ -112,7 +117,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(invalidConfig)).rejects.toThrow();
+      await expect(validate(schema, invalidConfig)).rejects.toThrow();
     });
   });
 
@@ -134,7 +139,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        await expect(schema.validate(config)).resolves.toBeDefined();
+        await expect(validate(schema, config)).resolves.toBeDefined();
       });
 
       it('should accept null values for description and placeholder', async () => {
@@ -153,7 +158,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        const result = await schema.validate(config);
+        const result: any = await validate(schema, config);
 
         expect(result.metadatas.title.edit.description).toBeNull();
         expect(result.metadatas.title.edit.placeholder).toBeNull();
@@ -175,7 +180,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        const result = await schema.validate(config);
+        const result: any = await validate(schema, config);
 
         expect(result.metadatas.title.edit.description).toBe('');
         expect(result.metadatas.title.edit.placeholder).toBe('');
@@ -196,10 +201,10 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        const result = await schema.validate(config);
+        const result: any = await validate(schema, config);
         expect(result.metadatas.title.edit.description).toBeUndefined();
         expect(result.metadatas.title.edit.placeholder).toBeUndefined();
-        await expect(schema.validate(config)).resolves.toBeDefined();
+        await expect(validate(schema, config)).resolves.toBeDefined();
       });
 
       it('should convert non-string values for description to strings', async () => {
@@ -218,7 +223,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        const result = await schema.validate(config);
+        const result: any = await validate(schema, config);
         expect(result.metadatas.title.edit.description).toBe('123');
       });
 
@@ -238,7 +243,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        await expect(schema.validate(config)).rejects.toThrow();
+        await expect(validate(schema, config)).rejects.toThrow();
       });
 
       it('should convert boolean values for description and placeholder to strings', async () => {
@@ -271,8 +276,8 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        const result1 = await schema.validate(configWithBooleanDescription);
-        const result2 = await schema.validate(configWithBooleanPlaceholder);
+        const result1: any = await validate(schema, configWithBooleanDescription);
+        const result2: any = await validate(schema, configWithBooleanPlaceholder);
 
         expect(result1.metadatas.title.edit.description).toBe('true');
         expect(result2.metadatas.title.edit.placeholder).toBe('false');
@@ -294,7 +299,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        await expect(schema.validate(config)).resolves.toBeDefined();
+        await expect(validate(schema, config)).resolves.toBeDefined();
       });
     });
 
@@ -333,7 +338,7 @@ describe('model-configuration validation', () => {
         };
 
         const schema = modelConfigurationValidation(mockSchema);
-        const result = await schema.validate(config);
+        const result: any = await validate(schema, config);
 
         expect(result.metadatas.title.edit.description).toBeNull();
         expect(result.metadatas.title.edit.placeholder).toBe('Enter title');
@@ -360,7 +365,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(config)).resolves.toBeDefined();
+      await expect(validate(schema, config)).resolves.toBeDefined();
     });
 
     it('should enforce pageSize limits', async () => {
@@ -383,8 +388,8 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(configTooSmall)).rejects.toThrow();
-      await expect(schema.validate(configTooLarge)).rejects.toThrow();
+      await expect(validate(schema, configTooSmall)).rejects.toThrow();
+      await expect(validate(schema, configTooLarge)).rejects.toThrow();
     });
   });
 
@@ -404,7 +409,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(config)).resolves.toBeDefined();
+      await expect(validate(schema, config)).resolves.toBeDefined();
     });
   });
 
@@ -415,7 +420,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(config)).resolves.toBeDefined();
+      await expect(validate(schema, config)).resolves.toBeDefined();
     });
 
     it('should handle partial edit metadata', async () => {
@@ -431,7 +436,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(config)).resolves.toBeDefined();
+      await expect(validate(schema, config)).resolves.toBeDefined();
     });
 
     it('should maintain original behavior for non-nullable fields', async () => {
@@ -451,7 +456,7 @@ describe('model-configuration validation', () => {
 
       const schema = modelConfigurationValidation(mockSchema);
       // This should fail because label is required and shouldn't be null
-      await expect(schema.validate(config)).rejects.toThrow();
+      await expect(validate(schema, config)).rejects.toThrow();
     });
   });
 
@@ -475,7 +480,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      await expect(schema.validate(legacyConfig)).resolves.toBeDefined();
+      await expect(validate(schema, legacyConfig)).resolves.toBeDefined();
     });
 
     it('should maintain compatibility with existing string values', async () => {
@@ -494,7 +499,7 @@ describe('model-configuration validation', () => {
       };
 
       const schema = modelConfigurationValidation(mockSchema);
-      const result = await schema.validate(existingConfig);
+      const result: any = await validate(schema, existingConfig);
 
       expect(result.metadatas.title.edit.description).toBe('Existing description');
       expect(result.metadatas.title.edit.placeholder).toBe('Existing placeholder');

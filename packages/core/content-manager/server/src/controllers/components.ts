@@ -45,15 +45,11 @@ export default {
 
     let input;
     try {
-      input = await createModelConfigurationSchema(component).validate(body, {
-        abortEarly: false,
-        stripUnknown: true,
-        strict: true,
-      });
+      input = await createModelConfigurationSchema(component).parseAsync(body);
     } catch (error: any) {
       return ctx.badRequest(null, {
         name: 'validationError',
-        errors: error.errors,
+        errors: error.errors ?? error.issues,
       });
     }
 

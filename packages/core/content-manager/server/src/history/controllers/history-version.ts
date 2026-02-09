@@ -93,7 +93,7 @@ const createHistoryVersionController = ({ strapi }: { strapi: Core.Strapi }) => 
     async restoreVersion(ctx) {
       const request = ctx.request as unknown as HistoryVersions.RestoreHistoryVersion.Request;
 
-      await validateRestoreVersion(request.body, 'contentType is required');
+      await validateRestoreVersion(request.body);
 
       const permissionChecker = getContentManagerService('permission-checker').create({
         userAbility: ctx.state.userAbility,

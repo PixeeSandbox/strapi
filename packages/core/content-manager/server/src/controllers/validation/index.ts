@@ -1,49 +1,45 @@
 import _ from 'lodash';
+import { z } from 'zod';
 import { Schema, UID } from '@strapi/types';
-import { yup, validateYupSchema, errors } from '@strapi/utils';
-import { ValidateOptions } from 'yup/lib/types';
-import { TestContext } from 'yup';
+import { validateZod, errors } from '@strapi/utils';
 import createModelConfigurationSchema from './model-configuration';
 
 const { PaginationError, ValidationError } = errors;
-const TYPES = ['singleType', 'collectionType'];
+const TYPES = ['singleType', 'collectionType'] as const;
+
+// Zod schema for Strapi IDs (string or non-negative integer)
+const strapiIDSchema = z.union([z.string(), z.number().int().nonnegative()]);
 
 /**
  * Validates type kind
  */
-const kindSchema = yup.string().oneOf(TYPES).nullable();
+const kindSchema = z.enum(TYPES).nullable();
 
-const bulkActionInputSchema = yup
-  .object({
-    documentIds: yup.array().of(yup.strapiID()).min(1).required(),
-  })
-  .required();
-
-const generateUIDInputSchema = yup.object({
-  contentTypeUID: yup.string().required(),
-  field: yup.string().required(),
-  data: yup.object().required(),
+const bulkActionInputSchema = z.object({
+  documentIds: z.array(strapiIDSchema).min(1),
 });
 
-const checkUIDAvailabilityInputSchema = yup.object({
-  contentTypeUID: yup.string().required(),
-  field: yup.string().required(),
-  value: yup
-    .string()
-    .required()
-    .test(
-      'isValueMatchingRegex',
-      `\${path} must match the custom regex or the default one "/^[A-Za-z0-9-_.~]*$/"`,
-      function (value, context: TestContext<{ regex?: string }>) {
-        return (
-          value === '' ||
-          (context.options.context?.regex
-            ? new RegExp(context.options?.context.regex).test(value as string)
-            : /^[A-Za-z0-9-_.~]*$/.test(value as string))
-        );
+const generateUIDInputSchema = z.object({
+  contentTypeUID: z.string(),
+  field: z.string(),
+  data: z.object({}).passthrough(),
+});
+
+const checkUIDAvailabilityInputSchema = (options?: { regex?: string }) =>
+  z.object({
+    contentTypeUID: z.string(),
+    field: z.string(),
+    value: z.string().refine(
+      (value) => {
+        if (value === '') return true;
+        const regex = options?.regex ? new RegExp(options.regex) : /^[A-Za-z0-9-_.~]*$/;
+        return regex.test(value);
+      },
+      {
+        message: 'value must match the custom regex or the default one "/^[A-Za-z0-9-_.~]*$/"',
       }
     ),
-});
+  });
 
 const validateUIDField = (contentTypeUID: any, field: any) => {
   const model = strapi.contentTypes[contentTypeUID];
@@ -72,15 +68,15 @@ const validatePagination = ({ page, pageSize }: any) => {
   }
 };
 
-const validateKind = validateYupSchema(kindSchema);
-const validateBulkActionInput = validateYupSchema(bulkActionInputSchema);
-const validateGenerateUIDInput = validateYupSchema(generateUIDInputSchema);
+const validateKind = validateZod(kindSchema);
+const validateBulkActionInput = validateZod(bulkActionInputSchema);
+const validateGenerateUIDInput = validateZod(generateUIDInputSchema);
 const validateCheckUIDAvailabilityInput = (body: {
   contentTypeUID: UID.ContentType;
   field: string;
   value: string;
 }) => {
-  const options: ValidateOptions<{ regex?: string }> = {};
+  let regex: string | undefined;
 
   const contentType =
     body.contentTypeUID in strapi.contentTypes ? strapi.contentTypes[body.contentTypeUID] : null;
@@ -90,12 +86,10 @@ const validateCheckUIDAvailabilityInput = (body: {
     `regex` in contentType.attributes[body.field] &&
     (contentType.attributes[body.field] as Schema.Attribute.UID).regex
   ) {
-    options.context = {
-      regex: (contentType?.attributes[body.field] as Schema.Attribute.UID).regex,
-    };
+    regex = (contentType?.attributes[body.field] as Schema.Attribute.UID).regex;
   }
 
-  const validator = validateYupSchema(checkUIDAvailabilityInputSchema, options);
+  const validator = validateZod(checkUIDAvailabilityInputSchema({ regex }));
 
   return validator(body);
 };
