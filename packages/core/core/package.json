@@ -136,7 +136,7 @@
     "eslint-config-custom": "5.36.0",
     "supertest": "6.3.3",
     "tsconfig": "5.36.0",
-    "vitest": "4.0.18",
+    "vitest": "catalog:",
     "vitest-config": "5.34.0"
   },
   "engines": {

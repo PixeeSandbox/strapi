@@ -9958,7 +9958,7 @@ __metadata:
     tsconfig: "npm:5.36.0"
     typescript: "npm:5.4.4"
     undici: "npm:6.23.0"
-    vitest: "npm:4.0.18"
+    vitest: "catalog:"
     vitest-config: "npm:5.34.0"
     yup: "npm:0.32.9"
     zod: "npm:3.25.67"
@@ -31953,7 +31953,7 @@ __metadata:
     tar: "npm:7.5.7"
     ts-jest: "npm:29.1.0"
     typescript: "npm:5.4.4"
-    vitest: "npm:4.0.18"
+    vitest: "catalog:"
     yalc: "npm:1.0.0-pre.53"
     yargs: "npm:17.7.2"
   languageName: unknown
@@ -34330,13 +34330,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vitest-config@workspace:packages/utils/vitest-config"
   dependencies:
-    vitest: "npm:^4.0.18"
+    vitest: "catalog:"
   peerDependencies:
     vitest: ^4.0.0
   languageName: unknown
   linkType: soft
 
-"vitest@npm:4.0.18, vitest@npm:^4.0.18":
+"vitest@npm:^4.0.18":
   version: 4.0.18
   resolution: "vitest@npm:4.0.18"
   dependencies:
