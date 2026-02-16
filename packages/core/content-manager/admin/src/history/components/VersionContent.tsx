@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Form, Layouts, useForm, createRulesEngine, useIsMobile } from '@strapi/admin/strapi-admin';
+import { Form, Layouts, useIsMobile } from '@strapi/admin/strapi-admin';
 import { Box, Divider, Flex, Grid, Typography } from '@strapi/design-system';
 import pipe from 'lodash/fp/pipe';
 import { useIntl } from 'react-intl';
@@ -104,19 +104,19 @@ function getRemaingFieldsLayout({
 
 const FormPanel = ({ panel }: { panel: EditFieldLayout[][] }) => {
   const isMobile = useIsMobile();
-  const fieldValues = useForm('Fields', (state) => state.values);
-  const rulesEngine = createRulesEngine();
+  // const fieldValues = useForm('Fields', (state) => state.values);
+  // const rulesEngine = createRulesEngine();
   if (panel.some((row) => row.some((field) => field.type === 'dynamiczone'))) {
     const [row] = panel;
     const [field] = row;
     const condition = field.attribute?.conditions?.visible;
 
-    if (condition) {
-      const isVisible = rulesEngine.evaluate(condition, fieldValues);
-      if (!isVisible) {
-        return null; // Skip rendering the dynamic zone if the condition is not met
-      }
-    }
+    // if (condition) {
+    //   const isVisible = rulesEngine.evaluate(condition, fieldValues);
+    //   if (!isVisible) {
+    //     return null; // Skip rendering the dynamic zone if the condition is not met
+    //   }
+    // }
 
     return (
       <Grid.Root key={field.name} gap={4}>
@@ -140,9 +140,9 @@ const FormPanel = ({ panel }: { panel: EditFieldLayout[][] }) => {
           const visibleFields = row.filter((field) => {
             const condition = field.attribute?.conditions?.visible;
 
-            if (condition) {
-              return rulesEngine.evaluate(condition, fieldValues);
-            }
+            // if (condition) {
+            //   return rulesEngine.evaluate(condition, fieldValues);
+            // }
 
             return true;
           });
