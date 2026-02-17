@@ -63,7 +63,14 @@ const ContentTypesSelector = ({ disabled }: ContentTypesSelectorProps) => {
   const { formatMessage, locale } = useIntl();
   const { data: contentTypes, isLoading } = useGetContentTypesQuery();
   const { workflows } = useReviewWorkflows();
-  const currentWorkflow = useForm('ContentTypesSelector', (state) => state.values);
+  const currentWorkflow = useForm('ContentTypesSelector', (state) => {
+    const values = state.values as { id?: string | number; contentTypes?: string[] };
+
+    return {
+      id: values?.id,
+      contentTypes: values?.contentTypes ?? [],
+    };
+  });
 
   const { error, value, onChange } = useField('contentTypes');
 

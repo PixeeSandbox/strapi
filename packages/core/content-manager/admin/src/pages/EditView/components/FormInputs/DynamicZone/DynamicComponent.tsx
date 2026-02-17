@@ -58,7 +58,6 @@ const DynamicComponent = ({
   children,
 }: DynamicComponentProps) => {
   const { formatMessage } = useIntl();
-  const formValues = useForm('DynamicComponent', (state) => state.values);
   const { currentDocument, currentDocumentMeta } = useDocumentContext('DynamicComponent');
   const isDesktop = useIsDesktop();
 
@@ -66,18 +65,23 @@ const DynamicComponent = ({
     edit: { components },
   } = useDocumentLayout(currentDocumentMeta.model);
 
-  const title = React.useMemo(() => {
+  const mainField = React.useMemo(() => {
     const { mainField } = components[componentUid]?.settings ?? { mainField: 'id' };
+    return mainField;
+  }, [componentUid, components]);
 
-    const mainFieldValue = getIn(formValues, `${name}.${index}.${mainField}`);
+  const mainFieldValue = useForm('DynamicComponent', (state) =>
+    getIn(state.values, `${name}.${index}.${mainField}`)
+  );
 
+  const displayTitle = React.useMemo(() => {
     const displayedValue =
       mainField === 'id' || !mainFieldValue ? '' : String(mainFieldValue).trim();
 
     const mainValue = displayedValue.length > 0 ? `- ${displayedValue}` : displayedValue;
 
     return mainValue;
-  }, [componentUid, components, formValues, name, index]);
+  }, [mainFieldValue, mainField]);
 
   const { icon, displayName } = React.useMemo(() => {
     const [category] = componentUid.split('.');
@@ -94,7 +98,7 @@ const DynamicComponent = ({
       index,
       item: {
         index,
-        displayedValue: `${displayName} ${title}`,
+        displayedValue: `${displayName} ${displayTitle}`,
         icon,
       },
       onMoveItem: onMoveComponent,
@@ -157,7 +161,7 @@ const DynamicComponent = ({
             id: getTranslation('components.DynamicZone.delete-label'),
             defaultMessage: 'Delete {name}',
           },
-          { name: title }
+          { name: displayTitle }
         )}
         onClick={onRemoveComponentClick}
       >
@@ -267,7 +271,7 @@ const DynamicComponent = ({
     </>
   );
 
-  const accordionTitle = title ? `${displayName} ${title}` : displayName;
+  const accordionTitle = displayTitle ? `${displayName} ${displayTitle}` : displayName;
 
   return (
     <ComponentContainer tag="li" width="100%">

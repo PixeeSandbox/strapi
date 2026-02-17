@@ -578,6 +578,33 @@ const transformData = (data: Record<string, any>): any => {
   return data;
 };
 
+const getDraftRelationsCount = (data: { [field: string]: any }) => {
+  const localDraftRelations = new Set<number>();
+
+  const extractDraftRelations = (relations: Omit<RelationsFormValue, 'disconnect'>) => {
+    const connectRelations = relations.connect || [];
+    connectRelations.forEach((relation) => {
+      if (relation.status === 'draft') {
+        localDraftRelations.add(relation.id);
+      }
+    });
+  };
+
+  const traverseAndExtract = (value: { [field: string]: any }) => {
+    Object.entries(value).forEach(([key, entry]) => {
+      if (key === 'connect' && Array.isArray(entry)) {
+        extractDraftRelations({ connect: entry });
+      } else if (typeof entry === 'object' && entry !== null) {
+        traverseAndExtract(entry);
+      }
+    });
+  };
+
+  traverseAndExtract(data);
+
+  return localDraftRelations.size;
+};
+
 /* -------------------------------------------------------------------------------------------------
  * DocumentActionComponents
  * -----------------------------------------------------------------------------------------------*/
@@ -611,7 +638,6 @@ const PublishAction: DocumentActionComponent = ({
     countDraftRelations,
     { isLoading: isLoadingDraftRelations, isError: isErrorDraftRelations },
   ] = useGetDraftRelationCountQuery();
-  const [localCountOfDraftRelations, setLocalCountOfDraftRelations] = React.useState(0);
   const [serverCountOfDraftRelations, setServerCountOfDraftRelations] = React.useState(0);
 
   const [{ rawQuery }] = useQueryParams();
@@ -621,7 +647,7 @@ const PublishAction: DocumentActionComponent = ({
   const isSubmitting = useForm('PublishAction', ({ isSubmitting }) => isSubmitting);
   const validate = useForm('PublishAction', (state) => state.validate);
   const setErrors = useForm('PublishAction', (state) => state.setErrors);
-  const formValues = useForm('PublishAction', ({ values }) => values);
+  const getValues = useForm('PublishAction', (state) => state.getValues);
   const initialValues = useForm('PublishAction', ({ initialValues }) => initialValues);
   const resetForm = useForm('PublishAction', ({ resetForm }) => resetForm);
   const {
@@ -670,43 +696,13 @@ const PublishAction: DocumentActionComponent = ({
     }
   }, [isErrorDraftRelations, toggleNotification, formatMessage]);
 
-  React.useEffect(() => {
-    const localDraftRelations = new Set();
-
-    /**
-     * Extracts draft relations from the provided data object.
-     * It checks for a connect array of relations.
-     * If a relation has a status of 'draft', its id is added to the localDraftRelations set.
-     */
-    const extractDraftRelations = (data: Omit<RelationsFormValue, 'disconnect'>) => {
-      const relations = data.connect || [];
-      relations.forEach((relation) => {
-        if (relation.status === 'draft') {
-          localDraftRelations.add(relation.id);
-        }
-      });
-    };
-
-    /**
-     * Recursively traverses the provided data object to extract draft relations from arrays within 'connect' keys.
-     * If the data is an object, it looks for 'connect' keys to pass their array values to extractDraftRelations.
-     * It recursively calls itself for any non-null objects it contains.
-     */
-    const traverseAndExtract = (data: { [field: string]: any }) => {
-      Object.entries(data).forEach(([key, value]) => {
-        if (key === 'connect' && Array.isArray(value)) {
-          extractDraftRelations({ connect: value });
-        } else if (typeof value === 'object' && value !== null) {
-          traverseAndExtract(value);
-        }
-      });
-    };
-
-    if (!documentId || modified) {
-      traverseAndExtract(formValues);
-      setLocalCountOfDraftRelations(localDraftRelations.size);
+  const localCountOfDraftRelations = useForm('PublishAction', (state) => {
+    if (documentId && !state.modified) {
+      return 0;
     }
-  }, [documentId, modified, formValues, setLocalCountOfDraftRelations]);
+
+    return getDraftRelationsCount(state.values);
+  });
 
   React.useEffect(() => {
     if (!document || !document.documentId || isListView) {
@@ -762,6 +758,7 @@ const PublishAction: DocumentActionComponent = ({
     setSubmitting(true);
 
     try {
+      const formValues = getValues();
       const { data: filteredData } = handleInvisibleAttributes(transformData(formValues), {
         schema,
         components,
@@ -1040,7 +1037,7 @@ const UpdateAction: DocumentActionComponent = ({
   const modified = useForm('UpdateAction', ({ modified }) => modified);
   const setSubmitting = useForm('UpdateAction', ({ setSubmitting }) => setSubmitting);
   const initialValues = useForm('UpdateAction', ({ initialValues }) => initialValues);
-  const document = useForm('UpdateAction', ({ values }) => values);
+  const getValues = useForm('UpdateAction', (state) => state.getValues);
   const validate = useForm('UpdateAction', (state) => state.validate);
   const setErrors = useForm('UpdateAction', (state) => state.setErrors);
   const resetForm = useForm('UpdateAction', ({ resetForm }) => resetForm);
@@ -1094,6 +1091,8 @@ const UpdateAction: DocumentActionComponent = ({
       if (!modified) {
         return;
       }
+
+      const document = getValues();
 
       const { errors } = await validate(true, {
         status: 'draft',

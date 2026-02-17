@@ -275,11 +275,10 @@ const ConditionAwareInputRenderer = ({
   condition,
   ...props
 }: InputRendererProps & { condition: JsonLogicCondition }) => {
-  // Note: this selector causes a re-render every time any form value on the page changes
-  const fieldValues = useForm('ConditionalInputRenderer', (state) => state.values);
-  // For nested fields, we evaluate against the parent scope so conditions can read siblings.
-  // Top-level fields resolve to the full form values.
-  const targetValues = getDirectParent(fieldValues, props.name);
+  // Subscribe only to the relevant parent scope to avoid re-rendering on any form value change
+  const targetValues = useForm('ConditionalInputRenderer', (state) =>
+    getDirectParent(state.values, props.name)
+  );
 
   const isVisible = rulesEngine.evaluate(condition, targetValues);
 
