@@ -18,6 +18,7 @@ import { styled } from 'styled-components';
 import { useUploadFilesStreamMutation } from '../../services/api';
 import { getTranslationKey } from '../../utils/translations';
 
+import { AssetDetailsDrawer, useAssetDetailsParam } from './components/AssetDetailsDrawer';
 import { AssetsGrid } from './components/AssetsGrid';
 import { AssetsTable } from './components/AssetsTable';
 import { DropFilesMessage, DropZoneWithOverlay } from './components/DropZone/UploadDropZone';
@@ -35,9 +36,10 @@ import type { UploadFileInfo } from '../../../../../shared/contracts/files';
 
 interface AssetsViewProps {
   view: number;
+  onAssetItemClick: (assetId: number) => void;
 }
 
-const AssetsView = ({ view }: AssetsViewProps) => {
+const AssetsView = ({ view, onAssetItemClick }: AssetsViewProps) => {
   const { formatMessage } = useIntl();
   const { assets, isLoading, isFetchingMore, hasNextPage, fetchNextPage, error } =
     useInfiniteAssets();
@@ -79,7 +81,11 @@ const AssetsView = ({ view }: AssetsViewProps) => {
 
   return (
     <>
-      {isGridView ? <AssetsGrid assets={assets} /> : <AssetsTable assets={assets} />}
+      {isGridView ? (
+        <AssetsGrid assets={assets} onAssetItemClick={onAssetItemClick} />
+      ) : (
+        <AssetsTable assets={assets} onAssetItemClick={onAssetItemClick} />
+      )}
       <div ref={loadMoreRef} style={{ height: 1 }} />
       {isFetchingMore && (
         <Flex justifyContent="center" padding={4}>
@@ -144,6 +150,7 @@ const HeaderWrapper = styled.div`
 
 export const AssetsPage = () => {
   const { formatMessage } = useIntl();
+  const { openDetails } = useAssetDetailsParam();
 
   // View state
   const [view, setView] = usePersistentState(localStorageKeys.view, viewOptions.GRID);
@@ -277,11 +284,12 @@ export const AssetsPage = () => {
           <Layouts.Content>
             <DropZoneWithOverlay>
               <DropFilesMessage uploadDropZoneRef={uploadDropZoneRef} />
-              <AssetsView view={view} />
+              <AssetsView view={view} onAssetItemClick={openDetails} />
             </DropZoneWithOverlay>
           </Layouts.Content>
         </Layouts.Root>
       </Box>
+      <AssetDetailsDrawer />
     </UploadDropZoneProvider>
   );
 };

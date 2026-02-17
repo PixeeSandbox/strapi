@@ -92,14 +92,18 @@ const AssetPreviewCell = ({ asset }: AssetPreviewCellProps) => {
 
 interface AssetRowProps {
   asset: File;
+  onAssetItemClick?: (assetId: number) => void;
 }
 
-const AssetRow = ({ asset }: AssetRowProps) => {
+const AssetRow = ({ asset, onAssetItemClick }: AssetRowProps) => {
   const isMobile = useIsMobile();
   const { formatDate, formatMessage } = useIntl();
 
   return (
-    <StyledTr>
+    <StyledTr
+      onClick={() => onAssetItemClick?.(asset.id)}
+      style={{ cursor: onAssetItemClick ? 'pointer' : undefined }}
+    >
       <StyledTd>
         <Flex gap={3} alignItems="center">
           <AssetPreviewCell asset={asset} />
@@ -153,9 +157,10 @@ const AssetRow = ({ asset }: AssetRowProps) => {
 
 interface AssetsTableProps {
   assets: File[];
+  onAssetItemClick?: (assetId: number) => void;
 }
 
-export const AssetsTable = ({ assets }: AssetsTableProps) => {
+export const AssetsTable = ({ assets, onAssetItemClick }: AssetsTableProps) => {
   const isMobile = useIsMobile();
   const { formatMessage } = useIntl();
 
@@ -207,7 +212,9 @@ export const AssetsTable = ({ assets }: AssetsTableProps) => {
             </StyledBodyTd>
           </RawTr>
         ) : (
-          assets.map((asset) => <AssetRow key={asset.id} asset={asset} />)
+          assets.map((asset) => (
+            <AssetRow key={asset.id} asset={asset} onAssetItemClick={onAssetItemClick} />
+          ))
         )}
       </RawTbody>
     </StyledTable>
