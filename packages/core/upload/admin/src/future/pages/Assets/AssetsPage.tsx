@@ -138,7 +138,7 @@ const StyledToggleItem = styled(ToggleGroup.Item)`
   }
 `;
 
-const HeaderWrapper = styled.div`
+const HeaderWrapper = styled(Box)`
   [data-strapi-header] {
     background: ${({ theme }) => theme.colors.neutral0};
 

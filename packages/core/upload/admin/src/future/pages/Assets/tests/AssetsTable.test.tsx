@@ -27,7 +27,8 @@ interface SetupProps {
   assets?: File[];
 }
 
-const setup = ({ assets = mockAssets }: SetupProps = {}) => render(<AssetsTable assets={assets} />);
+const setup = ({ assets = mockAssets }: SetupProps = {}) =>
+  render(<AssetsTable assets={assets} onAssetItemClick={jest.fn()} />);
 
 describe('AssetsTable', () => {
   describe('Table rendering', () => {
