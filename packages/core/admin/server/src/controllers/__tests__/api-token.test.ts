@@ -56,7 +56,8 @@ describe('API Token Controller', () => {
       const exists = jest.fn(() => false);
       const badRequest = jest.fn();
       const created = jest.fn();
-      const ctx = createContext({ body }, { badRequest, created });
+      const callingUser = { id: 1, roles: [{ code: 'strapi-super-admin' }] };
+      const ctx = createContext({ body }, { badRequest, created, state: { user: callingUser } });
 
       global.strapi = {
         admin: {
@@ -73,7 +74,7 @@ describe('API Token Controller', () => {
 
       expect(exists).toHaveBeenCalledWith({ name: body.name });
       expect(badRequest).not.toHaveBeenCalled();
-      expect(create).toHaveBeenCalledWith(body);
+      expect(create).toHaveBeenCalledWith(body, callingUser);
       expect(created).toHaveBeenCalled();
     });
 
@@ -93,7 +94,8 @@ describe('API Token Controller', () => {
       const exists = jest.fn(() => false);
       const badRequest = jest.fn();
       const created = jest.fn();
-      const ctx = createContext({ body: createBody }, { badRequest, created });
+      const callingUser = { id: 1, roles: [{ code: 'strapi-super-admin' }] };
+      const ctx = createContext({ body: createBody }, { badRequest, created, state: { user: callingUser } });
 
       global.strapi = {
         admin: {
@@ -110,7 +112,7 @@ describe('API Token Controller', () => {
 
       expect(exists).toHaveBeenCalledWith({ name: tokenBody.name });
       expect(badRequest).not.toHaveBeenCalled();
-      expect(create).toHaveBeenCalledWith(createBody);
+      expect(create).toHaveBeenCalledWith(createBody, callingUser);
       expect(created).toHaveBeenCalledWith({ data: tokenBody });
     });
 
@@ -188,7 +190,8 @@ describe('API Token Controller', () => {
       const exists = jest.fn(() => false);
       const badRequest = jest.fn();
       const created = jest.fn();
-      const ctx = createContext({ body: createBody }, { badRequest, created });
+      const callingUser = { id: 1, roles: [{ code: 'strapi-super-admin' }] };
+      const ctx = createContext({ body: createBody }, { badRequest, created, state: { user: callingUser } });
 
       global.strapi = {
         admin: {
@@ -205,7 +208,7 @@ describe('API Token Controller', () => {
 
       expect(exists).toHaveBeenCalledWith({ name: tokenBody.name });
       expect(badRequest).not.toHaveBeenCalled();
-      expect(create).toHaveBeenCalledWith(omit(['expiresAt'], createBody));
+      expect(create).toHaveBeenCalledWith(omit(['expiresAt'], createBody), callingUser);
       expect(created).toHaveBeenCalledWith({ data: tokenBody });
     });
   });
@@ -307,11 +310,14 @@ describe('API Token Controller', () => {
       type: 'read-only',
     };
 
-    test('Regenerates an API token successfully', async () => {
+    const ownerUser = { id: 42, roles: [{ code: 'strapi-editor' }] };
+    const superAdmin = { id: 99, roles: [{ code: 'strapi-super-admin' }] };
+
+    test('Regenerates an ownerless (legacy) token successfully', async () => {
       const regenerate = jest.fn().mockResolvedValue(token);
-      const getById = jest.fn().mockResolvedValue(token);
+      const getById = jest.fn().mockResolvedValue(token); // no adminUserOwner
       const created = jest.fn();
-      const ctx = createContext({ params: { id: token.id } }, { created });
+      const ctx = createContext({ params: { id: token.id } }, { created, state: { user: superAdmin } });
 
       global.strapi = {
         admin: {
@@ -329,12 +335,86 @@ describe('API Token Controller', () => {
       expect(regenerate).toHaveBeenCalledWith(token.id);
     });
 
+    test('Regenerates an owned token when caller is the owner', async () => {
+      const ownedToken = { ...token, adminUserOwner: ownerUser.id };
+      const regenerate = jest.fn().mockResolvedValue({ ...ownedToken, accessKey: 'new-key' });
+      const getById = jest.fn().mockResolvedValue(ownedToken);
+      const created = jest.fn();
+      const ctx = createContext({ params: { id: token.id } }, { created, state: { user: ownerUser } });
+
+      global.strapi = {
+        admin: {
+          services: {
+            'api-token': {
+              regenerate,
+              getById,
+            },
+          },
+        },
+      } as any;
+
+      await apiTokenController.regenerate(ctx as any);
+
+      expect(regenerate).toHaveBeenCalledWith(token.id);
+    });
+
+    test('Forbids regenerate when caller is not the owner', async () => {
+      const otherUser = { id: 55, roles: [{ code: 'strapi-editor' }] };
+      const ownedToken = { ...token, adminUserOwner: ownerUser.id };
+      const regenerate = jest.fn();
+      const getById = jest.fn().mockResolvedValue(ownedToken);
+      const created = jest.fn();
+      const forbidden = jest.fn();
+      const ctx = createContext({ params: { id: token.id } }, { created, forbidden, state: { user: otherUser } });
+
+      global.strapi = {
+        admin: {
+          services: {
+            'api-token': {
+              regenerate,
+              getById,
+            },
+          },
+        },
+      } as any;
+
+      await apiTokenController.regenerate(ctx as any);
+
+      expect(forbidden).toHaveBeenCalled();
+      expect(regenerate).not.toHaveBeenCalled();
+    });
+
+    test('Forbids regenerate when super admin tries to regenerate another user\'s token', async () => {
+      const ownedToken = { ...token, adminUserOwner: ownerUser.id };
+      const regenerate = jest.fn();
+      const getById = jest.fn().mockResolvedValue(ownedToken);
+      const created = jest.fn();
+      const forbidden = jest.fn();
+      const ctx = createContext({ params: { id: token.id } }, { created, forbidden, state: { user: superAdmin } });
+
+      global.strapi = {
+        admin: {
+          services: {
+            'api-token': {
+              regenerate,
+              getById,
+            },
+          },
+        },
+      } as any;
+
+      await apiTokenController.regenerate(ctx as any);
+
+      expect(forbidden).toHaveBeenCalled();
+      expect(regenerate).not.toHaveBeenCalled();
+    });
+
     test('Fails if token not found', async () => {
       const regenerate = jest.fn().mockResolvedValue(token);
       const getById = jest.fn().mockResolvedValue(null);
       const created = jest.fn();
       const notFound = jest.fn();
-      const ctx = createContext({ params: { id: token.id } }, { created, notFound });
+      const ctx = createContext({ params: { id: token.id } }, { created, notFound, state: { user: superAdmin } });
 
       global.strapi = {
         admin: {
@@ -363,10 +443,17 @@ describe('API Token Controller', () => {
       type: 'read-only',
     };
 
-    test('Retrieve an API token successfully', async () => {
-      const getById = jest.fn().mockResolvedValue(token);
+    const ownerUser = { id: 42, roles: [{ code: 'strapi-editor' }] };
+    const superAdmin = { id: 99, roles: [{ code: 'strapi-super-admin' }] };
+
+    test('Retrieve an ownerless (legacy) token includes accessKey for any caller', async () => {
+      const tokenWithKey = { ...token, accessKey: 'plaintext-key' };
+      // first call (no key), second call (with key)
+      const getById = jest.fn()
+        .mockResolvedValueOnce(token)
+        .mockResolvedValueOnce(tokenWithKey);
       const send = jest.fn();
-      const ctx = createContext({ params: { id: token.id } }, { send });
+      const ctx = createContext({ params: { id: token.id } }, { send, state: { user: superAdmin } });
 
       global.strapi = {
         admin: {
@@ -380,14 +467,63 @@ describe('API Token Controller', () => {
 
       await apiTokenController.get(ctx as any);
 
-      expect(getById).toHaveBeenCalledWith(token.id);
-      expect(send).toHaveBeenCalledWith({ data: token });
+      expect(getById).toHaveBeenCalledTimes(2);
+      expect(send).toHaveBeenCalledWith({ data: tokenWithKey });
+    });
+
+    test('Retrieve an owned token returns accessKey only for the owner', async () => {
+      const ownedToken = { ...token, adminUserOwner: ownerUser.id };
+      const ownedTokenWithKey = { ...ownedToken, accessKey: 'plaintext-key' };
+      const getById = jest.fn()
+        .mockResolvedValueOnce(ownedToken)
+        .mockResolvedValueOnce(ownedTokenWithKey);
+      const send = jest.fn();
+      const ctx = createContext({ params: { id: token.id } }, { send, state: { user: ownerUser } });
+
+      global.strapi = {
+        admin: {
+          services: {
+            'api-token': {
+              getById,
+            },
+          },
+        },
+      } as any;
+
+      await apiTokenController.get(ctx as any);
+
+      expect(getById).toHaveBeenCalledTimes(2);
+      expect(send).toHaveBeenCalledWith({ data: ownedTokenWithKey });
+    });
+
+    test('Retrieve an owned token does NOT return accessKey for super admin', async () => {
+      const ownedToken = { ...token, adminUserOwner: ownerUser.id };
+      const getById = jest.fn().mockResolvedValue(ownedToken);
+      const send = jest.fn();
+      const ctx = createContext({ params: { id: token.id } }, { send, state: { user: superAdmin } });
+
+      global.strapi = {
+        admin: {
+          services: {
+            'api-token': {
+              getById,
+            },
+          },
+        },
+      } as any;
+
+      await apiTokenController.get(ctx as any);
+
+      // Only one call — no second fetch for the key
+      expect(getById).toHaveBeenCalledTimes(1);
+      const sentData = send.mock.calls[0][0].data;
+      expect(sentData.accessKey).toBeUndefined();
     });
 
     test('Fails if the API token does not exist', async () => {
       const getById = jest.fn().mockResolvedValue(null);
       const notFound = jest.fn();
-      const ctx = createContext({ params: { id: token.id } }, { notFound });
+      const ctx = createContext({ params: { id: token.id } }, { notFound, state: { user: superAdmin } });
 
       global.strapi = {
         admin: {
@@ -470,7 +606,8 @@ describe('API Token Controller', () => {
       const getByName = jest.fn(() => null);
       const notFound = jest.fn();
       const send = jest.fn();
-      const ctx = createContext({ body, params: { id } }, { notFound, send });
+      const callingUser = { id: 1, roles: [{ code: 'strapi-super-admin' }] };
+      const ctx = createContext({ body, params: { id } }, { notFound, send, state: { user: callingUser } });
 
       global.strapi = {
         admin: {
@@ -489,7 +626,7 @@ describe('API Token Controller', () => {
       expect(getById).toHaveBeenCalledWith(id);
       expect(getByName).toHaveBeenCalledWith(body.name);
       expect(notFound).not.toHaveBeenCalled();
-      expect(update).toHaveBeenCalledWith(id, body);
+      expect(update).toHaveBeenCalledWith(id, body, callingUser);
       expect(send).toHaveBeenCalled();
     });
   });

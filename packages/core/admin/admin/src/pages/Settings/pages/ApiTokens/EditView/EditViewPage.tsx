@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Flex } from '@strapi/design-system';
+import { Flex, Tabs } from '@strapi/design-system';
 import { Formik, Form, FormikHelpers } from 'formik';
 import { useIntl } from 'react-intl';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { Layouts } from '../../../../../components/Layouts/Layout';
 import { Page } from '../../../../../components/PageHelpers';
 import { useTypedSelector } from '../../../../../core/store/hooks';
+import { useAuth } from '../../../../../features/Auth';
 import { useNotification } from '../../../../../features/Notifications';
 import { useTracking } from '../../../../../features/Tracking';
 import { useAPIErrorHandler } from '../../../../../hooks/useAPIErrorHandler';
@@ -27,12 +28,31 @@ import {
   ApiTokenPermissionsContextValue,
   ApiTokenPermissionsProvider,
 } from './apiTokenPermissions';
+import { AdminPermissions } from './components/AdminPermissions';
 import { FormApiTokenContainer } from './components/FormApiTokenContainer';
 import { Permissions } from './components/Permissions';
 import { schema } from './constants';
 import { initialState, reducer } from './reducer';
 
+import type { Data } from '@strapi/types';
+
+import type { AuthContextValue } from '../../../../../features/Auth';
 import type { Get, ApiToken } from '../../../../../../../shared/contracts/api-token';
+import type { PermissionsAPI } from '../../Roles/components/Permissions';
+
+const getOwnerId = (owner: ApiToken['adminUserOwner']): Data.ID | null => {
+  if (owner === undefined || owner === null) return null;
+  return typeof owner === 'object' ? owner.id : owner;
+};
+
+const isCurrentUserTokenOwner = (
+  apiToken: ApiToken | null,
+  currentUserId: Data.ID | undefined
+): boolean => {
+  const ownerId = apiToken === null ? null : getOwnerId(apiToken.adminUserOwner);
+  if (ownerId === null) return true;
+  return currentUserId !== undefined && ownerId === currentUserId;
+};
 
 /**
  * TODO: this could definitely be refactored to avoid using redux and instead just use the
@@ -44,16 +64,20 @@ export const EditView = () => {
   const { state: locationState } = useLocation();
   const permissions = useTypedSelector((state) => state.admin_app.permissions);
   const [apiToken, setApiToken] = React.useState<ApiToken | null>(
-    locationState?.apiToken?.accessKey
+    locationState?.apiToken?.accessKey !== undefined && locationState?.apiToken?.accessKey !== ''
       ? {
           ...locationState.apiToken,
         }
       : null
   );
 
-  const [showToken, setShowToken] = React.useState(Boolean(locationState?.apiToken?.accessKey));
+  const [showToken, setShowToken] = React.useState(
+    locationState?.apiToken?.accessKey !== undefined && locationState?.apiToken?.accessKey !== ''
+  );
   const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const adminPermissionsRef = React.useRef<PermissionsAPI>(null);
   const { trackUsage } = useTracking();
+  const currentUser = useAuth('EditView', (state: AuthContextValue) => state.user);
   const {
     allowedActions: { canCreate, canUpdate, canRegenerate },
   } = useRBAC(permissions.settings?.['api-tokens']);
@@ -204,6 +228,9 @@ export const EditView = () => {
     });
 
     try {
+      const adminPermissionsToSend =
+        adminPermissionsRef.current?.getPermissions().permissionsToSend ?? [];
+
       if (isCreating) {
         const res = await createToken({
           ...body,
@@ -211,6 +238,7 @@ export const EditView = () => {
           lifespan:
             body?.lifespan && body.lifespan !== '0' ? parseInt(body.lifespan.toString(), 10) : null,
           permissions: body.type === 'custom' ? state.selectedActions : null,
+          adminPermissions: adminPermissionsToSend,
         });
 
         if ('error' in res) {
@@ -239,6 +267,8 @@ export const EditView = () => {
           tokenType: API_TOKEN_TYPE,
         });
 
+        adminPermissionsRef.current?.setFormAfterSubmit();
+
         navigate(`../api-tokens/${res.data.id.toString()}`, {
           state: { apiToken: res.data },
           replace: true,
@@ -250,6 +280,7 @@ export const EditView = () => {
           description: body.description,
           type: body.type,
           permissions: body.type === 'custom' ? state.selectedActions : null,
+          adminPermissions: adminPermissionsToSend,
         });
 
         if ('error' in res) {
@@ -277,6 +308,8 @@ export const EditView = () => {
           type: res.data.type,
           tokenType: API_TOKEN_TYPE,
         });
+
+        adminPermissionsRef.current?.setFormAfterSubmit();
       }
     } catch {
       toggleNotification({
@@ -336,7 +369,9 @@ export const EditView = () => {
   };
 
   const canEditInputs = (canUpdate && !isCreating) || (canCreate && isCreating);
-  const canShowToken = !!apiToken?.accessKey;
+  const canShowToken = apiToken?.accessKey !== undefined && apiToken.accessKey !== '';
+  const canRegenerateToken =
+    canRegenerate && isCurrentUserTokenOwner(apiToken, currentUser?.id);
 
   if (isLoading) {
     return <Page.Loading />;
@@ -380,7 +415,7 @@ export const EditView = () => {
                   toggleToken={toggleToken}
                   showToken={showToken}
                   canEditInputs={canEditInputs}
-                  canRegenerate={canRegenerate}
+                  canRegenerate={canRegenerateToken}
                   canShowToken={canShowToken}
                   isSubmitting={isSubmitting}
                   regenerateUrl="/admin/api-tokens/"
@@ -388,11 +423,13 @@ export const EditView = () => {
 
                 <Layouts.Content>
                   <Flex direction="column" alignItems="stretch" gap={6}>
-                    {apiToken?.accessKey && showToken && (
-                      <>
-                        <ApiTokenBox token={apiToken.accessKey} tokenType={API_TOKEN_TYPE} />
-                      </>
-                    )}
+                    {apiToken?.accessKey !== undefined &&
+                      apiToken.accessKey !== '' &&
+                      showToken === true && (
+                        <>
+                          <ApiTokenBox token={apiToken.accessKey} tokenType={API_TOKEN_TYPE} />
+                        </>
+                      )}
 
                     <FormApiTokenContainer
                       errors={errors}
@@ -404,13 +441,46 @@ export const EditView = () => {
                       onDispatch={dispatch}
                       setHasChangedPermissions={setHasChangedPermissions}
                     />
-                    <Permissions
-                      disabled={
-                        !canEditInputs ||
-                        values?.type === 'read-only' ||
-                        values?.type === 'full-access'
-                      }
-                    />
+
+                    {isCreating ? (
+                      <AdminPermissions
+                        ref={adminPermissionsRef}
+                        disabled={!canEditInputs}
+                        initialAdminPermissions={[]}
+                      />
+                    ) : apiToken?.adminUserOwner !== undefined &&
+                      apiToken?.adminUserOwner !== null ? (
+                      <Tabs.Root defaultValue="legacy">
+                        <Tabs.List>
+                          <Tabs.Trigger value="legacy">Legacy</Tabs.Trigger>
+                          <Tabs.Trigger value="admin">Admin</Tabs.Trigger>
+                        </Tabs.List>
+                        <Tabs.Content value="legacy">
+                          <Permissions
+                            disabled={
+                              !canEditInputs ||
+                              values?.type === 'read-only' ||
+                              values?.type === 'full-access'
+                            }
+                          />
+                        </Tabs.Content>
+                        <Tabs.Content value="admin">
+                          <AdminPermissions
+                            ref={adminPermissionsRef}
+                            disabled={!canEditInputs}
+                            initialAdminPermissions={apiToken.adminPermissions ?? []}
+                          />
+                        </Tabs.Content>
+                      </Tabs.Root>
+                    ) : (
+                      <Permissions
+                        disabled={
+                          !canEditInputs ||
+                          values?.type === 'read-only' ||
+                          values?.type === 'full-access'
+                        }
+                      />
+                    )}
                   </Flex>
                 </Layouts.Content>
               </Form>

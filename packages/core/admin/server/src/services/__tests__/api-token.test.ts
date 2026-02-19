@@ -75,6 +75,7 @@ describe('API Token', () => {
   describe('create', () => {
     test('Creates a new read-only token', async () => {
       const create = jest.fn(({ data }) => Promise.resolve(data));
+      const callingUser = { id: 1, roles: [] } as any;
 
       setupStrapiMock({
         db: {
@@ -90,7 +91,7 @@ describe('API Token', () => {
         type: 'read-only',
       } as any;
 
-      const res = await apiTokenCreate(attributes);
+      const res = await apiTokenCreate(attributes, callingUser);
 
       expect(create).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
@@ -98,15 +99,17 @@ describe('API Token', () => {
           ...attributes,
           accessKey: hash(mockedApiToken.hexedString),
           encryptedKey: expect.any(String),
+          adminUserOwner: callingUser.id,
           expiresAt: null,
           lifespan: null,
         },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual({
         ...attributes,
         accessKey: mockedApiToken.hexedString,
         encryptedKey: expect.any(String),
+        adminUserOwner: callingUser.id,
         expiresAt: null,
         lifespan: null,
       });
@@ -121,6 +124,7 @@ describe('API Token', () => {
       } as any;
 
       const expectedExpires = Date.now() + attributes.lifespan;
+      const callingUser = { id: 1, roles: [] } as any;
 
       const create = jest.fn(({ data }) => Promise.resolve(data));
       setupStrapiMock({
@@ -131,7 +135,7 @@ describe('API Token', () => {
         },
       });
 
-      const res = await apiTokenCreate(attributes);
+      const res = await apiTokenCreate(attributes, callingUser);
 
       expect(create).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
@@ -139,15 +143,17 @@ describe('API Token', () => {
           ...attributes,
           accessKey: hash(mockedApiToken.hexedString),
           encryptedKey: expect.any(String),
+          adminUserOwner: callingUser.id,
           expiresAt: expectedExpires,
           lifespan: attributes.lifespan,
         },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual({
         ...attributes,
         accessKey: mockedApiToken.hexedString,
         encryptedKey: expect.any(String),
+        adminUserOwner: callingUser.id,
         expiresAt: expectedExpires,
         lifespan: attributes.lifespan,
       });
@@ -179,6 +185,7 @@ describe('API Token', () => {
     });
 
     test('Creates a custom token', async () => {
+      const callingUser = { id: 1, roles: [] } as any;
       const attributes = {
         name: 'api-token_tests-name',
         description: 'api-token_tests-description',
@@ -188,6 +195,7 @@ describe('API Token', () => {
 
       const createTokenResult = {
         ...attributes,
+        adminUserOwner: callingUser.id,
         lifespan: null,
         expiresAt: null,
         id: 1,
@@ -218,7 +226,7 @@ describe('API Token', () => {
         },
       });
 
-      const res = await apiTokenCreate(attributes);
+      const res = await apiTokenCreate(attributes, callingUser);
 
       expect(load).toHaveBeenCalledWith(
         {
@@ -234,10 +242,11 @@ describe('API Token', () => {
           ...omit('permissions', attributes),
           accessKey: hash(mockedApiToken.hexedString),
           encryptedKey: expect.any(String),
+          adminUserOwner: callingUser.id,
           expiresAt: null,
           lifespan: null,
         },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       // call to create permission
       expect(create).toHaveBeenNthCalledWith(2, {
@@ -260,6 +269,7 @@ describe('API Token', () => {
     });
 
     test('Creates a custom token with no permissions', async () => {
+      const callingUser = { id: 1, roles: [] } as any;
       const attributes = {
         name: 'api-token_tests-name',
         description: 'api-token_tests-description',
@@ -269,6 +279,7 @@ describe('API Token', () => {
 
       const createTokenResult = {
         ...attributes,
+        adminUserOwner: callingUser.id,
         lifespan: null,
         expiresAt: null,
         id: 1,
@@ -299,7 +310,7 @@ describe('API Token', () => {
         },
       });
 
-      const res = await apiTokenCreate(attributes);
+      const res = await apiTokenCreate(attributes, callingUser);
 
       expect(load).toHaveBeenCalledWith(
         {
@@ -316,10 +327,11 @@ describe('API Token', () => {
           ...omit('permissions', attributes),
           accessKey: hash(mockedApiToken.hexedString),
           encryptedKey: expect.any(String),
+          adminUserOwner: callingUser.id,
           expiresAt: null,
           lifespan: null,
         },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
 
       expect(res).toEqual({
@@ -331,6 +343,7 @@ describe('API Token', () => {
     });
 
     test('Creates a custom token with duplicate permissions should ignore duplicates', async () => {
+      const callingUser = { id: 1, roles: [] } as any;
       const attributes = {
         name: 'api-token_tests-name',
         description: 'api-token_tests-description',
@@ -340,6 +353,7 @@ describe('API Token', () => {
 
       const createTokenResult = {
         ...attributes,
+        adminUserOwner: callingUser.id,
         lifespan: null,
         expiresAt: null,
         id: 1,
@@ -370,7 +384,7 @@ describe('API Token', () => {
         },
       });
 
-      const res = await apiTokenCreate(attributes);
+      const res = await apiTokenCreate(attributes, callingUser);
 
       expect(res.permissions).toHaveLength(2);
       expect(res.permissions).toEqual(['api::foo.foo.find', 'api::foo.foo.create']);
@@ -526,7 +540,7 @@ describe('API Token', () => {
       expect(findMany).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         orderBy: { name: 'ASC' },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual(tokens);
     });
@@ -556,7 +570,7 @@ describe('API Token', () => {
       expect(mockedDelete).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         where: { id: token.id },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual(token);
     });
@@ -577,7 +591,7 @@ describe('API Token', () => {
       expect(mockedDelete).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         where: { id: 42 },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
 
       expect(res).toEqual(null);
@@ -608,7 +622,7 @@ describe('API Token', () => {
       expect(findOne).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         where: { id: token.id },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual(token);
     });
@@ -629,7 +643,7 @@ describe('API Token', () => {
       expect(findOne).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         where: { id: 42 },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual(null);
     });
@@ -813,7 +827,7 @@ describe('API Token', () => {
       const create = jest.fn();
       const load = jest
         .fn()
-        // first call to load original permissions
+        // load permissions for result
         .mockResolvedValueOnce(
           Promise.resolve(
             originalToken.permissions.map((p) => {
@@ -823,16 +837,8 @@ describe('API Token', () => {
             })
           )
         )
-        // second call to check new permissions
-        .mockResolvedValueOnce(
-          Promise.resolve(
-            originalToken.permissions.map((p) => {
-              return {
-                action: p,
-              };
-            })
-          )
-        );
+        // load adminPermissions for result (none set on this token)
+        .mockResolvedValueOnce(null);
 
       global.strapi = {
         db: {
@@ -1010,7 +1016,7 @@ describe('API Token', () => {
       expect(findOne).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         where: { name: token.name },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual(token);
     });
@@ -1031,9 +1037,81 @@ describe('API Token', () => {
       expect(findOne).toHaveBeenCalledWith({
         select: expect.arrayContaining([expect.any(String)]),
         where: { name: 'unexistant-name' },
-        populate: ['permissions'],
+        populate: ['permissions', 'adminPermissions', 'adminUserOwner'],
       });
       expect(res).toEqual(null);
+    });
+  });
+
+  describe('getBy - includeDecryptedKey option', () => {
+    const setupWithEncryption = () => {
+      // Use the outer ENCRYPTION_KEY so encrypt/decrypt use the same key
+      setupStrapiMock({
+        db: {
+          query() {
+            return {
+              findOne: jest.fn().mockResolvedValue({
+                id: 1,
+                name: 'test-token',
+                type: 'read-only',
+                encryptedKey: encryptionService.encrypt('plaintext-key'),
+              }),
+            };
+          },
+        },
+      });
+    };
+
+    test('By default does NOT select encryptedKey and does NOT return accessKey', async () => {
+      const findOne = jest.fn().mockResolvedValue({
+        id: 1,
+        name: 'test-token',
+        type: 'read-only',
+      });
+
+      setupStrapiMock({
+        db: {
+          query() {
+            return { findOne };
+          },
+        },
+      });
+
+      const res = await getById(1);
+
+      // encryptedKey must not be in the select list
+      const callArgs = findOne.mock.calls[0][0];
+      expect(callArgs.select).not.toContain('encryptedKey');
+      expect(res?.accessKey).toBeUndefined();
+    });
+
+    test('With { includeDecryptedKey: true } selects encryptedKey and returns plaintext accessKey', async () => {
+      setupWithEncryption();
+
+      const res = await getById(1, { includeDecryptedKey: true });
+
+      expect(res?.accessKey).toBe('plaintext-key');
+    });
+
+    test('With { includeDecryptedKey: true } and missing encryptedKey returns token without accessKey', async () => {
+      setupStrapiMock({
+        db: {
+          query() {
+            return {
+              findOne: jest.fn().mockResolvedValue({
+                id: 1,
+                name: 'test-token',
+                type: 'read-only',
+                encryptedKey: null,
+              }),
+            };
+          },
+        },
+      });
+
+      const res = await getById(1, { includeDecryptedKey: true });
+
+      expect(res?.accessKey).toBeUndefined();
     });
   });
 });

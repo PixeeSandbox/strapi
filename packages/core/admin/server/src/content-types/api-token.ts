@@ -67,6 +67,22 @@ export default {
       configurable: false,
       required: false,
     },
+    adminPermissions: {
+      type: 'relation',
+      target: 'admin::permission',
+      relation: 'oneToMany',
+      mappedBy: 'apiToken',
+      configurable: false,
+      required: false,
+    },
+    adminUserOwner: {
+      type: 'relation',
+      target: 'admin::user',
+      relation: 'manyToOne',
+      inversedBy: 'apiTokens',
+      configurable: false,
+      required: false,
+    },
     expiresAt: {
       type: 'datetime',
       configurable: false,

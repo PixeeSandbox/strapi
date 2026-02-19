@@ -1,9 +1,10 @@
 import { errors } from '@strapi/utils';
 import type { Data } from '@strapi/types';
+import type { Permission, AdminUser } from './shared';
 
 export type ApiToken = {
-  accessKey: string;
-  encryptedKey: string;
+  accessKey?: string;
+  encryptedKey?: string;
   createdAt: string;
   description: string;
   expiresAt: string;
@@ -12,6 +13,8 @@ export type ApiToken = {
   lifespan: string | number | null;
   name: string;
   permissions: string[];
+  adminPermissions?: Permission[];
+  adminUserOwner?: Data.ID | AdminUser;
   type: 'custom' | 'full-access' | 'read-only';
   updatedAt: string;
 };
@@ -19,6 +22,8 @@ export type ApiToken = {
 export interface ApiTokenBody extends Pick<ApiToken, 'description' | 'name'> {
   lifespan?: ApiToken['lifespan'] | null;
   permissions?: ApiToken['permissions'] | null;
+  adminPermissions?: Omit<Permission, 'id' | 'createdAt' | 'updatedAt' | 'actionParameters'>[];
+  adminUserOwner?: Data.ID;
   type: ApiToken['type'] | undefined;
 }
 
@@ -106,5 +111,39 @@ export declare namespace Update {
   export interface Response {
     data: ApiToken;
     error?: errors.ApplicationError | errors.YupValidationError;
+  }
+}
+
+/**
+ * GET /api-tokens/:id/admin-permissions - Get admin permissions of a token
+ */
+export declare namespace GetAdminPermissions {
+  export interface Request {
+    params: { id: Data.ID };
+    query: {};
+    body: {};
+  }
+
+  export interface Response {
+    data: Permission[];
+    error?: errors.ApplicationError | errors.NotFoundError;
+  }
+}
+
+/**
+ * PUT /api-tokens/:id/admin-permissions - Update admin permissions
+ */
+export declare namespace UpdateAdminPermissions {
+  export interface Request {
+    params: { id: Data.ID };
+    query: {};
+    body: {
+      permissions: Omit<Permission, 'id' | 'createdAt' | 'updatedAt' | 'actionParameters'>[];
+    };
+  }
+
+  export interface Response {
+    data: Permission[];
+    error?: errors.ApplicationError | errors.NotFoundError | errors.YupValidationError;
   }
 }
