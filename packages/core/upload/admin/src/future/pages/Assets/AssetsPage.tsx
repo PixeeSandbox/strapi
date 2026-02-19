@@ -18,7 +18,10 @@ import { styled } from 'styled-components';
 import { useUploadFilesStreamMutation } from '../../services/api';
 import { getTranslationKey } from '../../utils/translations';
 
-import { AssetDetailsDrawer, useAssetDetailsParam } from './components/AssetDetailsDrawer';
+import {
+  AssetDetailsDrawer,
+  useAssetDetailsParam,
+} from './components/AssetDetails/AssetDetailsDrawer';
 import { AssetsGrid } from './components/AssetsGrid';
 import { AssetsTable } from './components/AssetsTable';
 import { DropFilesMessage, DropZoneWithOverlay } from './components/DropZone/UploadDropZone';
