@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'async_hooks';
+import { parseStringPromise } from 'xml2js';
 import type { ParameterizedContext } from 'koa';
 
 const storage = new AsyncLocalStorage<ParameterizedContext>();

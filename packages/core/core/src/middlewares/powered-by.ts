@@ -1,3 +1,4 @@
+import { Builder } from 'xml2js';
 import type { Core } from '@strapi/types';
 
 export interface Config {

@@ -1,3 +1,12 @@
+import _ from 'underscore';
+
+/**
+ * Validates that a template string is indeed a string before processing.
+ */
+const isTemplateString = (value: unknown): value is string => {
+  return _.isString(value);
+};
+
 /**
  * Create a strict interpolation RegExp based on the given variables' name
  */
@@ -15,4 +24,4 @@ const createStrictInterpolationRegExp = (allowedVariableNames: string[], flags: 
  */
 const createLooseInterpolationRegExp = (flags: string) => new RegExp(/<%=([\s\S]+?)%>/, flags);
 
-export { createStrictInterpolationRegExp, createLooseInterpolationRegExp };
+export { createStrictInterpolationRegExp, createLooseInterpolationRegExp, isTemplateString };

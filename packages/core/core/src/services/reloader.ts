@@ -1,3 +1,4 @@
+import { parseString } from 'xml2js';
 import type { Core } from '@strapi/types';
 
 export const createReloader = (strapi: Core.Strapi) => {

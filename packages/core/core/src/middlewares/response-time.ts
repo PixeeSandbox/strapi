@@ -1,3 +1,4 @@
+import { Parser } from 'xml2js';
 import type { Core } from '@strapi/types';
 
 export const responseTime: Core.MiddlewareFactory = () => {

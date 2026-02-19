@@ -1,4 +1,5 @@
 import qs from 'qs';
+import { parseString } from 'xml2js';
 import type Koa from 'koa';
 import type { Core } from '@strapi/types';
 
